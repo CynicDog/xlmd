@@ -38,3 +38,7 @@ func TestExcelToMarkdown(t *testing.T) {
 		t.Errorf("Markdown output does not match expected.\n\nGot:\n%s\n\nWant:\n%s", got, want)
 	}
 }
+
+func TestMarkdownToExcel(t *testing.T) {
+	// TODO
+}
