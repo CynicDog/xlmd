@@ -8,55 +8,6 @@ import (
 	"strconv"
 )
 
-// Worksheet Main XML structure for a single sheet (e.g., sheet1.xml)
-type Worksheet struct {
-	XMLName   xml.Name     `xml:"http://schemas.openxmlformats.org/spreadsheetml/2006/main worksheet"`
-	SheetData SheetDataXML `xml:"sheetData"`
-}
-
-type SheetDataXML struct {
-	Rows []RowXML `xml:"row"`
-}
-
-type RowXML struct {
-	R     int       `xml:"r,attr"` // Row index (1-based)
-	Cells []CellXML `xml:"c"`
-}
-
-type CellXML struct {
-	R string `xml:"r,attr"`           // Cell reference (e.g., "A1", "B5")
-	T string `xml:"t,attr,omitempty"` // Type: "s" for shared string
-	V string `xml:"v"`                // Value: string index if t="s", raw value otherwise
-}
-
-// SST (Shared String Table): Unique strings used in the workbook.
-type SST struct {
-	XMLName     xml.Name `xml:"http://schemas.openxmlformats.org/spreadsheetml/2006/main sst"`
-	Count       int      `xml:"count,attr"`
-	UniqueCount int      `xml:"uniqueCount,attr"`
-	SI          []SI     `xml:"si"`
-}
-
-type SI struct {
-	T string `xml:"t"` // Text
-}
-
-// WorkbookXML lists all sheets and their relationships.
-type WorkbookXML struct {
-	XMLName xml.Name  `xml:"http://schemas.openxmlformats.org/spreadsheetml/2006/main workbook"`
-	Sheets  SheetsXML `xml:"sheets"`
-}
-
-type SheetsXML struct {
-	Sheet []SheetXMLInner `xml:"sheet"`
-}
-
-type SheetXMLInner struct {
-	Name    string `xml:"name,attr"`
-	SheetID int    `xml:"sheetId,attr"`
-	RID     string `xml:"http://schemas.openxmlformats.org/officeDocument/2006/relationships id,attr"`
-}
-
 // toColName converts a 0-based column index (0, 1, 2...) into an Excel column letter ("A", "B", "C"...).
 func toColName(col int) string {
 	if col < 0 {
@@ -209,13 +160,13 @@ func WriteExcel(filePath string, sheets []SheetData) error {
 	}
 
 	for i, sheet := range sheets {
-		xmlRows := make([]RowXML, 0, len(sheet.Rows))
+		xmlRows := make([]Row, 0, len(sheet.Rows))
 
 		for rIdx, row := range sheet.Rows {
 			rowNum := rIdx + 1 // 1-based index
-			xmlCells := make([]CellXML, 0, len(row))
+			xmlCells := make([]Cell, 0, len(row))
 
-			// Find the column count for this row (max index)
+			// Find the column count for this Row (max index)
 			maxColIndex := -1
 			for j, val := range row {
 				if val != "" {
@@ -236,16 +187,16 @@ func WriteExcel(filePath string, sheets []SheetData) error {
 				// All strings are stored as shared strings
 				stringIndex := stringIndexMap[cellValue]
 
-				xmlCells = append(xmlCells, CellXML{
-					R: cellRef,
-					T: "s", // Shared String type
-					V: strconv.Itoa(stringIndex),
+				xmlCells = append(xmlCells, Cell{
+					Ref:  cellRef,
+					Type: "s", // Shared String type
+					Val:  strconv.Itoa(stringIndex),
 				})
 			}
 
-			// Only include rows that have at least one cell
+			// Only include rows that have at least one Cell
 			if len(xmlCells) > 0 {
-				xmlRows = append(xmlRows, RowXML{
+				xmlRows = append(xmlRows, Row{
 					R:     rowNum,
 					Cells: xmlCells,
 				})
@@ -253,7 +204,7 @@ func WriteExcel(filePath string, sheets []SheetData) error {
 		}
 
 		wsData := Worksheet{
-			SheetData: SheetDataXML{
+			SheetData: SheetXML{
 				Rows: xmlRows,
 			},
 		}
