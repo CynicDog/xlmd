@@ -101,7 +101,6 @@ func parseTable(mdContent string) ([][]string, error) {
 			// Split by '|' to examine the content of each "cell"
 			rawCells := strings.Split(trimmed, "|")
 
-			// --- START: IMPROVED SEPARATOR CHECK ---
 			isSeparator := true
 			for _, cell := range rawCells {
 				cell = strings.TrimSpace(cell)
@@ -117,7 +116,6 @@ func parseTable(mdContent string) ([][]string, error) {
 			if isSeparator {
 				continue // Skip the separator row
 			}
-			// --- END: IMPROVED SEPARATOR CHECK ---
 
 			// If we are here, it's a data row (header or content)
 			rowVals := make([]string, 0, len(rawCells))
