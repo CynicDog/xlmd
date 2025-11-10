@@ -1,0 +1,120 @@
+plugins {
+    id 'java'
+    id 'application'
+}
+
+group = 'kr.co.metlife'
+version = '1.0.0'
+
+repositories {
+    mavenCentral()
+}
+
+application {
+    mainClass.set('kr.co.metlife.Main')
+}
+
+tasks.withType(JavaCompile) {
+    options.encoding = 'UTF-8'
+}
+
+/**
+ * Task to run the application locally, passing -i and -o flags.
+ * * Usage: ./gradlew runApp --args="-i input.xlsx -o output.md"
+ * OR
+ * Usage: ./gradlew runApp --args="-i doc.md -o table.xlsx"
+ */
+tasks.register('runApp', JavaExec) {
+    description = 'Runs the application locally, passing command line arguments.'
+    // Use the compiled classes and dependencies
+    classpath = sourceSets.main.runtimeClasspath
+    // Set the main class from the application block
+    mainClass = application.mainClass.get()
+    // The arguments are expected to be passed using the --args="..." property on the command line
+}
+
+// Step 2a: Configure the primary JAR file for distribution
+tasks.jar {
+    archiveFileName.set('xlmd-app.jar')
+    // Ensures the JAR manifest includes the Main-Class entry point
+    manifest {
+        attributes 'Main-Class': application.mainClass.get()
+    }
+    // Ensures all compiled classes are included in the JAR
+    from(sourceSets.main.output)
+}
+
+// Helper function to call the jpackage tool (available in JDK 14+)
+def jpackageExec() {
+    return 'jpackage'
+}
+
+
+/**
+ * Task for building the native Windows executable.
+ * Run this on a Windows CI/CD runner.
+ * * Usage: ./gradlew packageWindows
+ */
+tasks.register('packageWindows', Exec) {
+    description = 'Creates a Windows .exe installer/executable using jpackage.'
+
+    // Ensure the JAR artifact is ready
+    dependsOn tasks.jar
+
+    // The command to execute jpackage
+    commandLine jpackageExec(),
+            '--input', layout.buildDirectory.dir('libs').get().asFile, // Input directory where the JAR is
+            '--name', 'xlmd',
+            '--app-version', project.version,
+            '--main-jar', tasks.jar.archiveFileName.get(),
+            '--main-class', application.mainClass.get(),
+            '--type', 'exe', // Creates a Windows executable package (e.g., MSI or EXE)
+            '--dest', layout.buildDirectory.dir('executables').get().asFile // Output directory
+}
+
+/**
+ * Task for building the native Unix-like executable (for Linux/macOS).
+ * Run this on a Linux or macOS CI/CD runner.
+ * * Usage: ./gradlew packageUnix
+ *
+ * TODO: Resolve Mac Codesign Failure
+ */
+tasks.register('packageUnix', Exec) {
+    description = 'Creates a macOS app image (.app) without signing (for local use).'
+    dependsOn tasks.jar
+
+    def destDir = layout.buildDirectory.dir('executables').get().asFile
+    def appBundle = new File(destDir, 'xlmd.app')
+
+    doFirst {
+        if (appBundle.exists()) {
+            println "🧹 Removing old app bundle: ${appBundle}"
+            appBundle.deleteDir()
+        }
+    }
+
+    // The command to execute jpackage
+    commandLine jpackageExec(),
+            '--input', layout.buildDirectory.dir('libs').get().asFile,
+            '--name', 'xlmd',
+            '--app-version', project.version,
+            '--main-jar', tasks.jar.archiveFileName.get(),
+            '--main-class', application.mainClass.get(),
+            '--type', 'app-image',
+            '--dest', layout.buildDirectory.dir('executables').get().asFile
+}
+
+// Convenience task to run both packaging steps (useful if you have a multi-OS runner)
+tasks.register('packageAll') {
+    description = 'Builds all native executables (Windows EXE and Unix app image).'
+    dependsOn tasks.packageWindows, tasks.packageUnix
+}
+
+dependencies {
+    testImplementation platform('org.junit:junit-bom:5.10.0')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+}
+
+test {
+    useJUnitPlatform()
+}
