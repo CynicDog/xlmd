@@ -42,28 +42,13 @@ package kr.co.metlife.excel.model;
  *
  */
 
-import java.util.ArrayList;
 import java.util.List;
 
 public class SheetData {
-
     private String name;
+    private List<String[]> rows;
 
-    // List of rows, where each row is a List of cell values (strings).
-    private List<List<String>> rows;
-
-    /**
-     * For building a sheet incrementally (your original version).
-     */
-    public SheetData(String name) {
-        this.name = name;
-        this.rows = new ArrayList<>();
-    }
-
-    /**
-     * For building a sheet with all data at once (used by MarkdownReader).
-     */
-    public SheetData(String name, List<List<String>> rows) {
+    public SheetData(String name, List<String[]> rows) {
         this.name = name;
         this.rows = rows;
     }
@@ -72,15 +57,11 @@ public class SheetData {
         return name;
     }
 
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public List<List<String>> getRows() {
+    public List<String[]> getRows() {
         return rows;
     }
 
-    public void addRow(List<String> row) {
-        this.rows.add(row);
+    public int getMaxColumnCount() {
+        return rows.stream().mapToInt(r -> r.length).max().orElse(0);
     }
 }
