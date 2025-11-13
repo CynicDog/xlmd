@@ -6,14 +6,14 @@ import kr.co.metlife.excel.model.SheetData;
 import kr.co.metlife.markdown.MarkdownReader;
 import kr.co.metlife.markdown.MarkdownWriter;
 
-import java.io.IOException;
-import java.nio.file.Paths;
 import java.util.List;
-import javax.xml.stream.XMLStreamException;
+import java.util.Scanner;
 
 /**
- * Main command-line application entry point for XLMD.
- * Parses -i and -o flags, determines the conversion direction, and executes the logic.
+ * Interactive CLI의 entry point입니다.
+ * 두 가지 모드를 지원합니다:
+ *  1) Excel → Markdown  : Excel 셀을 붙여넣으면 converted.md로 출력
+ *  2) Markdown → Excel  : Markdown 텍스트를 붙여넣으면 converted.xlsx로 출력
  */
 public class Main {
 
@@ -25,94 +25,105 @@ public class Main {
                       \\/_/\\/_/   \\/_____/   \\/_/  \\/_/   \\/____/\s
                      \s""";
 
+    /**
+     * 프로그램의 entry point로서, 사용자에게 변환 모드를 선택하도록 안내하고
+     * 선택에 따라 Excel → Markdown 또는 Markdown → Excel 변환을 실행합니다.
+     *
+     * @param args 커맨드라인 인수 (미사용)
+     */
     public static void main(String[] args) {
-        // Simple argument parsing for -i and -o
-        String inputFile = null;
-        String outputFile = null;
+        System.out.println(BANNER);
+        System.out.println("변환 모드를 선택하세요:");
+        System.out.println("1) Excel → Markdown");
+        System.out.println("2) Markdown → Excel");
+        System.out.print("입력: ");
 
-        for (int i = 0; i < args.length; i++) {
-            if (args[i].equalsIgnoreCase("-i") && i + 1 < args.length) {
-                inputFile = args[i + 1];
-            } else if (args[i].equalsIgnoreCase("-o") && i + 1 < args.length) {
-                outputFile = args[i + 1];
-            }
+        int choice = readChoice();
+
+        switch (choice) {
+            case 1 -> runExcelToMarkdown();
+            case 2 -> runMarkdownToExcel(); // implemented later
+            default -> System.out.println("잘못된 선택입니다. 프로그램을 종료합니다.");
         }
-
-        if (inputFile == null || outputFile == null) {
-            printUsage();
-            System.exit(1);
-        }
-
-        runConversion(inputFile, outputFile);
     }
 
-    private static void printUsage() {
-        System.out.println(BANNER);
-        System.out.println("Usage: java kr.co.metlife.cli.XLMD -i <input_file> -o <output_file>");
-        System.out.println("\nExample: ");
-        System.out.println("  Convert Excel to Markdown: XLMD -i data.xlsx -o output.md");
-        System.out.println("  Convert Markdown to Excel: XLMD -i report.md -o table.xlsx");
-        System.out.println("\nNote: Conversion direction is inferred from file extensions.");
+    /**
+     * 사용자가 입력한 메뉴 선택 숫자를 읽습니다.
+     *
+     * @return 사용자가 입력한 숫자 선택, 유효하지 않으면 -1
+     */
+    private static int readChoice() {
+        Scanner sc = new Scanner(System.in);
+        if (sc.hasNextInt()) {
+            return sc.nextInt();
+        }
+        return -1;
     }
 
-    private static void runConversion(String inputFile, String outputFile) {
-        String inExt = getExtension(inputFile);
-        String outExt = getExtension(outputFile);
-        String direction = null;
+    /**
+     * 모드 1: Excel → Markdown 변환을 수행합니다.
+     * 사용자가 Excel에서 복사한 데이터를 붙여넣으면
+     * converted.md 파일로 Markdown 형식으로 저장됩니다.
+     */
+    private static void runExcelToMarkdown() {
+        System.out.println("\nExcel에서 복사한 데이터를 붙여넣고 ENTER를 두 번 누르세요:\n");
 
-        if (".xlsx".equalsIgnoreCase(inExt) && ".md".equalsIgnoreCase(outExt)) {
-            direction = "excel2md";
-        } else if (".md".equalsIgnoreCase(inExt) && ".xlsx".equalsIgnoreCase(outExt)) {
-            direction = "md2excel";
+        ExcelReader reader = new ExcelReader();
+        List<SheetData> sheets = reader.readFromUserInput();
+
+        if (sheets.isEmpty() || sheets.get(0).getRows().isEmpty()) {
+            System.out.println("데이터가 입력되지 않았습니다. 프로그램을 종료합니다.");
+            return;
         }
 
-        if (direction == null) {
-            System.err.println("\nError: Invalid file combination.");
-            System.err.println("Must be either Excel → Markdown (.xlsx → .md) or Markdown → Excel (.md → .xlsx)");
-            System.exit(1);
+        MarkdownWriter writer = new MarkdownWriter();
+        writer.writeMarkdown("converted.md", sheets);
+
+        System.out.println("Markdown 파일이 저장되었습니다: converted.md");
+    }
+
+    /**
+     * 모드 2: Markdown → Excel 변환을 수행합니다.
+     * 사용자가 Markdown 테이블을 붙여넣으면
+     * converted.xlsx 파일로 Excel 형식으로 저장됩니다.
+     */
+    private static void runMarkdownToExcel() {
+        System.out.println("\nMarkdown 테이블을 붙여넣고 완료되면 ENTER를 누르세요:\n");
+
+        // Read multi-line input from user until two consecutive blank lines
+        Scanner sc = new Scanner(System.in);
+        StringBuilder inputBuilder = new StringBuilder();
+
+        while (true) {
+            String line = sc.nextLine();
+            if (line.trim().isEmpty()) break; // stop at first blank line
+            inputBuilder.append(line).append("\n");
         }
 
-        System.out.println(BANNER);
-        System.out.printf("Convert %s input file to %s output file (%s)\n\n", inputFile, outputFile, direction);
+        String markdownInput = inputBuilder.toString().trim();
 
+        if (markdownInput.isEmpty()) {
+            System.out.println("Markdown 테이블이 입력되지 않았습니다. 프로그램을 종료합니다.");
+            return;
+        }
+
+        // Parse Markdown into SheetData
+        MarkdownReader mdReader = new MarkdownReader();
+        List<SheetData> sheets = mdReader.fromMarkdownString(markdownInput);
+
+        if (sheets.isEmpty()) {
+            System.out.println("Markdown에서 테이블 데이터를 찾을 수 없습니다. 프로그램을 종료합니다.");
+            return;
+        }
+
+        // Write Excel file
+        ExcelWriter writer = new ExcelWriter("converted.xlsx", sheets);
         try {
-            if ("excel2md".equals(direction)) {
-                System.out.println("-> Reading Excel file...");
-                ExcelReader reader = new ExcelReader(inputFile);
-                List<SheetData> data = reader.read();
-                System.out.println("-> Writing Markdown file...");
-                MarkdownWriter.writeMarkdown(outputFile, data);
-            } else { // md2excel
-                System.out.println("-> Reading Markdown file...");
-                MarkdownReader reader = new MarkdownReader();
-                List<SheetData> data = reader.readMarkdown(inputFile);
-                System.out.println("-> Writing Excel file...");
-                ExcelWriter writer = new ExcelWriter(outputFile, data);
-                writer.write();
-            }
-            System.out.println("\nSUCCESS: Conversion complete!");
-
-        } catch (IOException e) {
-            System.err.println("\nFATAL ERROR: A file system error occurred.");
-            System.err.println("Details: " + e.getMessage());
-            System.exit(1);
-        } catch (XMLStreamException e) {
-            System.err.println("\nFATAL ERROR: Failed to process XML content (XLSX/Markdown parsing error).");
-            System.err.println("Details: " + e.getMessage());
-            System.exit(1);
+            writer.write();
+            System.out.println("Excel 파일이 저장되었습니다: converted.xlsx");
         } catch (Exception e) {
-            System.err.println("\nFATAL ERROR: An unexpected error occurred.");
-            e.printStackTrace(System.err);
-            System.exit(1);
+            System.out.println("Excel 파일 작성에 실패했습니다: " + e.getMessage());
+            e.printStackTrace();
         }
-    }
-
-    private static String getExtension(String fileName) {
-        String name = Paths.get(fileName).getFileName().toString();
-        int lastDot = name.lastIndexOf('.');
-        if (lastDot > 0) {
-            return name.substring(lastDot).toLowerCase();
-        }
-        return "";
     }
 }

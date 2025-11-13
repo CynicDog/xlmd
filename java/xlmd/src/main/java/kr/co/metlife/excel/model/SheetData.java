@@ -1,7 +1,5 @@
 package kr.co.metlife.excel.model;
-
 /*
- *
  * Excel Package Types
  *
  * This file defines the XML structures and core data models used by the
@@ -42,28 +40,23 @@ package kr.co.metlife.excel.model;
  *
  */
 
-import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * 하나의 시트를 표현하는 데이터 모델입니다.
+ * 시트 이름과 여러 행(row)을 포함하며, 각 행은 문자열 배열로 표현됩니다.
+ */
 public class SheetData {
-
     private String name;
-
-    // List of rows, where each row is a List of cell values (strings).
-    private List<List<String>> rows;
+    private List<String[]> rows;
 
     /**
-     * For building a sheet incrementally (your original version).
+     * 시트 데이터를 생성합니다.
+     *
+     * @param name 시트 이름
+     * @param rows 시트의 행 데이터 리스트, 각 행은 문자열 배열
      */
-    public SheetData(String name) {
-        this.name = name;
-        this.rows = new ArrayList<>();
-    }
-
-    /**
-     * For building a sheet with all data at once (used by MarkdownReader).
-     */
-    public SheetData(String name, List<List<String>> rows) {
+    public SheetData(String name, List<String[]> rows) {
         this.name = name;
         this.rows = rows;
     }
@@ -72,15 +65,16 @@ public class SheetData {
         return name;
     }
 
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public List<List<String>> getRows() {
+    public List<String[]> getRows() {
         return rows;
     }
 
-    public void addRow(List<String> row) {
-        this.rows.add(row);
+    /**
+     * 시트 내에서 가장 많은 열(column) 수를 반환합니다.
+     *
+     * @return 최대 열 수
+     */
+    public int getMaxColumnCount() {
+        return rows.stream().mapToInt(r -> r.length).max().orElse(0);
     }
 }
