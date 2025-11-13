@@ -94,9 +94,13 @@ public class ExcelWriter {
         this.stringIndexMap = new HashMap<>();
 
         for (SheetData sheet : sheets) {
-            if (sheet.getRows() == null) continue;
-            for (List<String> row : sheet.getRows()) {
+            List<String[]> rows = sheet.getRows();
+            if (rows == null) continue;
+
+            for (String[] row : rows) {
                 if (row == null) continue;
+
+                // Loop through each cell value in the String[]
                 for (String value : row) {
                     if (value != null && !value.isEmpty() && !stringIndexMap.containsKey(value)) {
                         stringIndexMap.put(value, sharedStrings.size());
@@ -324,17 +328,23 @@ public class ExcelWriter {
         w.writeDefaultNamespace(NS_MAIN);
 
         w.writeStartElement("sheetData");
-        if (sheet.getRows() != null) {
-            for (int rIdx = 0; rIdx < sheet.getRows().size(); rIdx++) {
-                List<String> row = sheet.getRows().get(rIdx);
-                if (row == null || row.isEmpty()) continue;
+
+        List<String[]> rows = sheet.getRows();
+
+        if (rows != null) {
+            for (int rIdx = 0; rIdx < rows.size(); rIdx++) {
+                String[] row = rows.get(rIdx);
+
+                if (row == null || row.length == 0) continue;
                 int rowNum = rIdx + 1;
 
                 w.writeStartElement("row");
                 w.writeAttribute("r", String.valueOf(rowNum));
 
-                for (int cIdx = 0; cIdx < row.size(); cIdx++) {
-                    String value = row.get(cIdx);
+                // Iterate over the String array
+                for (int cIdx = 0; cIdx < row.length; cIdx++) {
+                    String value = row[cIdx];
+
                     if (value == null || value.isEmpty()) continue;
                     String colName = indexToColRef(cIdx);
                     int index = stringIndexMap.getOrDefault(value, -1);

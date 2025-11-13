@@ -1,14 +1,19 @@
 package kr.co.metlife;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.util.ArrayList;
+import kr.co.metlife.excel.ExcelReader;
+import kr.co.metlife.excel.ExcelWriter;
+import kr.co.metlife.excel.model.SheetData;
+import kr.co.metlife.markdown.MarkdownReader;
+import kr.co.metlife.markdown.MarkdownWriter;
+
 import java.util.List;
+import java.util.Scanner;
 
 /**
- * XLMD interactive converter:
- * User pastes tab-delimited (copied-from-Excel) data into the terminal.
- * The app prints out the equivalent Markdown table.
+ * Interactive CLI entry point for XLMD
+ * Two modes:
+ *  1) Excel → Markdown  : Paste Excel cells → outputs converted.md
+ *  2) Markdown → Excel  : Paste Markdown text → outputs converted.xlsx
  */
 public class Main {
 
@@ -22,70 +27,88 @@ public class Main {
 
     public static void main(String[] args) {
         System.out.println(BANNER);
-        System.out.println("Paste the copied data from Excel below, then press ENTER twice when done:\n");
+        System.out.println("Choose conversion mode:");
+        System.out.println("1) Excel → Markdown");
+        System.out.println("2) Markdown → Excel");
+        System.out.print("Enter choice (1 or 2): ");
 
-        List<String[]> rows = readUserPastedData();
-        if (rows.isEmpty()) {
+        int choice = readChoice();
+
+        switch (choice) {
+            case 1 -> runExcelToMarkdown();
+            case 2 -> runMarkdownToExcel(); // implemented later
+            default -> System.out.println("Invalid choice. Exiting.");
+        }
+    }
+
+    /** Reads user’s numeric menu choice */
+    private static int readChoice() {
+        Scanner sc = new Scanner(System.in);
+        if (sc.hasNextInt()) {
+            return sc.nextInt();
+        }
+        return -1;
+    }
+
+    /** === MODE 1: Excel → Markdown === */
+    private static void runExcelToMarkdown() {
+        System.out.println("\nPaste the copied data from Excel below, then press ENTER twice when done:\n");
+
+        ExcelReader reader = new ExcelReader();
+        List<SheetData> sheets = reader.readFromUserInput();
+
+        if (sheets.isEmpty() || sheets.get(0).getRows().isEmpty()) {
             System.out.println("No data received. Exiting.");
             return;
         }
 
-        String markdown = convertToMarkdown(rows);
-        System.out.println("\nConverted Markdown Table:\n");
-        System.out.println(markdown);
+        MarkdownWriter writer = new MarkdownWriter();
+        writer.writeMarkdown("converted.md", sheets);
+
+        System.out.println("\n Conversion complete!");
+        System.out.println("Markdown saved to: converted.md");
     }
 
-    /** Reads multiline user input (tab- or comma-delimited) until an empty line is entered. */
-    private static List<String[]> readUserPastedData() {
-        List<String[]> rows = new ArrayList<>();
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(System.in))) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                if (line.trim().isEmpty()) break; // blank line signals end of paste
-                // Split on tab (preferred when pasting from Excel), fallback to comma
-                String[] cells = line.split("\t", -1);
-                if (cells.length == 1) cells = line.split(",", -1);
-                rows.add(cells);
-            }
+    /** === MODE 2: Markdown → Excel === */
+    private static void runMarkdownToExcel() {
+        System.out.println("\nPaste your Markdown table(s) below, then press ENTER when done:\n");
+
+        // Read multi-line input from user until two consecutive blank lines
+        Scanner sc = new Scanner(System.in);
+        StringBuilder inputBuilder = new StringBuilder();
+
+        while (true) {
+            String line = sc.nextLine();
+            if (line.trim().isEmpty()) break; // stop at first blank line
+            inputBuilder.append(line).append("\n");
+        }
+
+        String markdownInput = inputBuilder.toString().trim();
+
+        if (markdownInput.isEmpty()) {
+            System.out.println("No Markdown input detected. Exiting.");
+            return;
+        }
+
+        // Parse Markdown into SheetData
+        MarkdownReader mdReader = new MarkdownReader();
+        List<SheetData> sheets = mdReader.fromMarkdownString(markdownInput);
+
+        if (sheets.isEmpty()) {
+            System.out.println("No table data found in Markdown. Exiting.");
+            return;
+        }
+
+        // Write Excel file
+        ExcelWriter writer = new ExcelWriter("converted.xlsx", sheets);
+        try {
+            writer.write();
+            System.out.println("\nConversion complete!");
+            System.out.println("Excel saved to: converted.xlsx");
         } catch (Exception e) {
-            System.err.println("Error reading input: " + e.getMessage());
+            System.out.println("Failed to write Excel file: " + e.getMessage());
+            e.printStackTrace();
         }
-        return rows;
     }
 
-    /** Converts parsed rows into Markdown table format. */
-    private static String convertToMarkdown(List<String[]> rows) {
-        if (rows.isEmpty()) return "";
-
-        int colCount = 0;
-        for (String[] row : rows) {
-            if (row.length > colCount) colCount = row.length;
-        }
-
-        // pad all rows to equal length
-        for (int i = 0; i < rows.size(); i++) {
-            String[] r = rows.get(i);
-            if (r.length < colCount) {
-                String[] padded = new String[colCount];
-                System.arraycopy(r, 0, padded, 0, r.length);
-                for (int j = r.length; j < colCount; j++) padded[j] = "";
-                rows.set(i, padded);
-            }
-        }
-
-        StringBuilder sb = new StringBuilder();
-        // Header
-        String[] header = rows.get(0);
-        sb.append("| ").append(String.join(" | ", header)).append(" |\n");
-
-        // Separator
-        sb.append("|").append(" --- |".repeat(colCount)).append("\n");
-
-        // Body
-        for (int i = 1; i < rows.size(); i++) {
-            sb.append("| ").append(String.join(" | ", rows.get(i))).append(" |\n");
-        }
-
-        return sb.toString();
-    }
 }
