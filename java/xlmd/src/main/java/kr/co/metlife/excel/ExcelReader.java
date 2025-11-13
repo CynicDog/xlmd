@@ -8,14 +8,15 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Reads pasted Excel tabular data (from clipboard paste in CLI)
- * and converts it into SheetData model.
+ * 사용자가 입력한 Excel 테이블 데이터를 읽어 {@link SheetData} 모델로 변환하는 클래스입니다.
  */
 public class ExcelReader {
 
     /**
-     * Reads multiline tab- or comma-delimited input from user (stdin)
-     * until a blank line is entered.
+     * 사용자 입력(stdin)으로부터 여러 줄의 탭 또는 콤마 구분 데이터를 읽습니다.
+     * 빈 줄을 만나면 입력을 종료합니다.
+     *
+     * @return 입력된 데이터를 포함하는 {@link SheetData} 리스트
      */
     public List<SheetData> readFromUserInput() {
         List<String[]> rows = new ArrayList<>();

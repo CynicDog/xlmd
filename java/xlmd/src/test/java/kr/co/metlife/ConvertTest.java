@@ -20,7 +20,12 @@ class ConvertTest {
     @TempDir
     Path tempDir;
 
-    /** Excel → Markdown: simulate user paste input */
+    /**
+     * Excel → Markdown 변환 모듈 테스트.
+     * 사용자가 Excel에서 복사한 데이터를 붙여넣는 시나리오를 시뮬레이션합니다.
+     *
+     * @throws Exception 입력/출력 과정에서 오류가 발생할 수 있습니다.
+     */
     @Test
     void testExcelToMarkdownModule() throws Exception {
         String simulatedInput = """
@@ -47,7 +52,12 @@ class ConvertTest {
         assertTrue(content.contains("| sepal.length |"), "Markdown header should exist");
     }
 
-    /** Markdown → Excel: simulate user paste input */
+    /**
+     * Markdown → Excel 변환 모듈 테스트.
+     * 사용자가 Markdown 테이블을 붙여넣는 시나리오를 시뮬레이션합니다.
+     *
+     * @throws Exception 입력/출력 과정에서 오류가 발생할 수 있습니다.
+     */
     @Test
     void testMarkdownToExcelModule() throws Exception {
         String markdownInput = """

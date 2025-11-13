@@ -11,8 +11,7 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
 /**
- * Minimal XLSX writer using only core Java (ZIP + StAX XML).
- * Produces the same structure as the working Go version.
+ * 순수 Java(ZIP + StAX XML)만 사용하여 OpenXML 규격을 준수하는 XLSX 파일을 작성하는 클래스입니다.
  */
 public class ExcelWriter {
 
@@ -29,10 +28,10 @@ public class ExcelWriter {
     private ZipOutputStream zipOut;
 
     /**
-     * Creates a new {@code ExcelWriter} for writing sheet data to an XLSX file.
+     * XLSX 파일로 시트 데이터를 작성하기 위한 새로운 {@code ExcelWriter} 객체를 생성합니다.
      *
-     * @param filePath The output file path where the XLSX will be written.
-     * @param sheets The list of {@link SheetData} objects to include in the workbook.
+     * @param filePath XLSX 파일이 작성될 출력 경로
+     * @param sheets 워크북에 포함될 {@link SheetData} 객체들의 목록
      */
     public ExcelWriter(String filePath, List<SheetData> sheets) {
         this.filePath = filePath;
@@ -41,10 +40,10 @@ public class ExcelWriter {
     }
 
     /**
-     * Writes the XLSX file to disk, generating all required XML parts
-     * and packaging them into a ZIP archive.
+     * XLSX 파일을 디스크에 작성합니다.
+     * 필요한 모든 XML 파트를 생성하고, 이를 ZIP 파일로 패키징합니다.
      *
-     * @throws IOException If an error occurs while creating or writing the XLSX file.
+     * @throws IOException XLSX 파일 생성 또는 작성 중 오류가 발생한 경우
      */
     public void write() throws IOException {
         buildSharedStringTable();
@@ -86,8 +85,8 @@ public class ExcelWriter {
     }
 
     /**
-     * Builds the shared string table used by the workbook.
-     * Each unique string is assigned an index for reference by cells.
+     * 워크북에서 사용할 공유 문자열 테이블을 구성합니다.
+     * 각 고유 문자열은 셀에서 참조할 수 있도록 인덱스를 할당받습니다.
      */
     private void buildSharedStringTable() {
         this.sharedStrings = new ArrayList<>();
@@ -112,12 +111,12 @@ public class ExcelWriter {
     }
 
     /**
-     * Creates an {@link XMLStreamWriter} for a new ZIP entry within the XLSX archive.
+     * XLSX 아카이브 내 새 ZIP 엔트리에 대한 {@link XMLStreamWriter}를 생성합니다.
      *
-     * @param entry The path of the ZIP entry to create (e.g., "xl/workbook.xml").
-     * @return A new {@link XMLStreamWriter} for writing XML content to the entry.
-     * @throws IOException If an I/O error occurs while creating the ZIP entry.
-     * @throws XMLStreamException If an XML streaming error occurs during writer creation.
+     * @param entry 생성할 ZIP 엔트리 경로 (예: "xl/workbook.xml")
+     * @return 해당 엔트리에 XML 내용을 작성할 새로운 {@link XMLStreamWriter}
+     * @throws IOException ZIP 엔트리를 생성하는 동안 I/O 오류가 발생한 경우
+     * @throws XMLStreamException 작성기 생성 중 XML 스트리밍 오류가 발생한 경우
      */
     private XMLStreamWriter createXMLWriter(String entry) throws IOException, XMLStreamException {
         zipOut.putNextEntry(new ZipEntry(entry));
@@ -127,11 +126,11 @@ public class ExcelWriter {
     }
 
     /**
-     * Closes the given XML stream writer and finalizes the current ZIP entry.
+     * 지정된 XML 스트림 작성기를 닫고 현재 ZIP 엔트리를 완료합니다.
      *
-     * @param writer The {@link XMLStreamWriter} to close.
-     * @throws XMLStreamException If an XML streaming error occurs during closing.
-     * @throws IOException If an I/O error occurs while closing the ZIP entry.
+     * @param writer 닫을 {@link XMLStreamWriter}
+     * @throws XMLStreamException 닫는 동안 XML 스트리밍 오류가 발생한 경우
+     * @throws IOException ZIP 엔트리를 닫는 동안 I/O 오류가 발생한 경우
      */
     private void closeXMLWriter(XMLStreamWriter writer) throws XMLStreamException, IOException {
         writer.writeEndDocument();
@@ -141,11 +140,11 @@ public class ExcelWriter {
     }
 
     /**
-     * Writes the content types XML file ([Content_Types].xml),
-     * defining MIME types for all parts of the Excel package.
+     * 콘텐츠 유형 XML 파일([Content_Types].xml)을 작성합니다.
+     * Excel 패키지의 각 파트에 대한 MIME 타입을 정의합니다.
      *
-     * @throws IOException If an I/O error occurs while writing to the ZIP output.
-     * @throws XMLStreamException If an XML streaming error occurs during writing.
+     * @throws IOException ZIP 출력 중 I/O 오류가 발생할 경우
+     * @throws XMLStreamException XML 스트리밍 작성 중 오류가 발생할 경우
      */
     private void writeContentTypes() throws IOException, XMLStreamException {
         XMLStreamWriter w = createXMLWriter("[Content_Types].xml");
@@ -189,11 +188,11 @@ public class ExcelWriter {
     }
 
     /**
-     * Writes the root relationships XML file (_rels/.rels),
-     * linking the package to the main workbook document.
+     * 루트 관계 XML 파일(_rels/.rels)을 작성합니다.
+     * 이 파일은 패키지와 메인 워크북 문서(xl/workbook.xml) 간의 연결을 정의합니다.
      *
-     * @throws IOException If an I/O error occurs while writing to the ZIP output.
-     * @throws XMLStreamException If an XML streaming error occurs during writing.
+     * @throws IOException ZIP 출력 중 I/O 오류가 발생할 경우
+     * @throws XMLStreamException XML 스트리밍 작성 중 오류가 발생할 경우
      */
     private void writeRootRelationships() throws IOException, XMLStreamException {
         XMLStreamWriter w = createXMLWriter("_rels/.rels");
@@ -211,11 +210,11 @@ public class ExcelWriter {
     }
 
     /**
-     * Writes the workbook relationships XML file (xl/_rels/workbook.xml.rels),
-     * defining links between the workbook and its sheets, styles, and shared strings.
+     * 워크북과 각 시트, 스타일, 공유 문자열 간의 관계를 정의하는
+     * 워크북 관계 XML 파일(xl/_rels/workbook.xml.rels)을 작성합니다.
      *
-     * @throws IOException If an I/O error occurs while writing to the ZIP output.
-     * @throws XMLStreamException If an XML streaming error occurs during writing.
+     * @throws IOException ZIP 출력 중 I/O 오류가 발생할 경우
+     * @throws XMLStreamException XML 스트리밍 작성 중 오류가 발생할 경우
      */
     private void writeWorkbookRelationships() throws IOException, XMLStreamException {
         XMLStreamWriter w = createXMLWriter("xl/_rels/workbook.xml.rels");
@@ -249,10 +248,10 @@ public class ExcelWriter {
     }
 
     /**
-     * Writes the workbook XML file (xl/workbook.xml), defining all sheets and their relationships.
+     * 모든 시트와 그 관계를 정의하는 워크북 XML 파일(xl/workbook.xml)을 작성합니다.
      *
-     * @throws IOException If an I/O error occurs while writing to the ZIP output.
-     * @throws XMLStreamException If an XML streaming error occurs during writing.
+     * @throws IOException ZIP 출력 중 I/O 오류가 발생할 경우
+     * @throws XMLStreamException XML 스트리밍 작성 중 오류가 발생할 경우
      */
     private void writeWorkbookXML() throws IOException, XMLStreamException {
         XMLStreamWriter w = createXMLWriter("xl/workbook.xml");
@@ -275,10 +274,10 @@ public class ExcelWriter {
     }
 
     /**
-     * Writes a minimal styles XML file (xl/styles.xml) required by Excel for workbook formatting.
+     * Excel 워크북 형식 작성을 위해 필요한 최소한의 스타일 XML 파일(xl/styles.xml)을 작성합니다.
      *
-     * @throws IOException If an I/O error occurs while writing to the ZIP output.
-     * @throws XMLStreamException If an XML streaming error occurs during writing.
+     * @throws IOException ZIP 출력 중 I/O 오류가 발생할 경우
+     * @throws XMLStreamException XML 스트리밍 작성 중 오류가 발생할 경우
      */
     private void writeStylesXML() throws IOException, XMLStreamException {
         XMLStreamWriter w = createXMLWriter("xl/styles.xml");
@@ -289,10 +288,10 @@ public class ExcelWriter {
     }
 
     /**
-     * Writes the shared strings XML file (xl/sharedStrings.xml), which stores all unique text values.
+     * 모든 고유 문자열 값을 저장하는 shared strings XML 파일(xl/sharedStrings.xml)을 작성합니다.
      *
-     * @throws IOException If an I/O error occurs while writing to the ZIP output.
-     * @throws XMLStreamException If an XML streaming error occurs during writing.
+     * @throws IOException ZIP 출력 중 I/O 오류가 발생할 경우
+     * @throws XMLStreamException XML 스트리밍 작성 중 오류가 발생할 경우
      */
     private void writeSharedStringsXML() throws IOException, XMLStreamException {
         XMLStreamWriter w = createXMLWriter("xl/sharedStrings.xml");
@@ -314,13 +313,13 @@ public class ExcelWriter {
     }
 
     /**
-     * Writes a worksheet XML file (xl/worksheets/sheetX.xml) for the given sheet.
-     * Each cell is written using shared string references.
+     * 주어진 시트 데이터를 기반으로 워크시트 XML 파일(xl/worksheets/sheetX.xml)을 작성합니다.
+     * 각 셀은 shared string 참조를 사용하여 기록됩니다.
      *
-     * @param sheet The {@link SheetData} object containing the worksheet data.
-     * @param sheetId The 1-based index of the sheet, used to name the XML file.
-     * @throws IOException If an I/O error occurs while writing to the ZIP output.
-     * @throws XMLStreamException If an XML streaming error occurs during writing.
+     * @param sheet 워크시트 데이터를 포함하는 {@link SheetData} 객체
+     * @param sheetId 시트의 1 기반 인덱스, XML 파일 이름에 사용
+     * @throws IOException ZIP 출력 중 I/O 오류가 발생할 경우
+     * @throws XMLStreamException XML 스트리밍 작성 중 오류가 발생할 경우
      */
     private void writeWorksheetXML(SheetData sheet, int sheetId) throws IOException, XMLStreamException {
         XMLStreamWriter w = createXMLWriter("xl/worksheets/sheet" + sheetId + ".xml");
@@ -370,11 +369,11 @@ public class ExcelWriter {
     }
 
     /**
-     * Converts a zero-based column index to an Excel-style column letter.
-     * For example, 0 → "A", 25 → "Z", 26 → "AA".
+     * 0 기반 열 인덱스를 Excel 스타일 열 문자로 변환합니다.
+     * 예: 0 → "A", 25 → "Z", 26 → "AA"
      *
-     * @param col The zero-based column index.
-     * @return The corresponding Excel-style column letter.
+     * @param col 0 기반 열 인덱스
+     * @return 해당하는 Excel 열 문자
      */
     private String indexToColRef(int col) {
         StringBuilder sb = new StringBuilder();

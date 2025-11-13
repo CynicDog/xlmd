@@ -8,12 +8,18 @@ import java.nio.file.Path;
 import java.util.List;
 
 /**
- * Converts SheetData into Markdown table syntax and writes to file.
+ * SheetData를 Markdown 테이블 문법으로 변환하여 파일에 작성합니다.
  */
 public class MarkdownWriter {
 
     /**
-     * Writes all provided sheets as Markdown tables into a .md file.
+     * 전달받은 모든 시트(SheetData) 정보를 Markdown 테이블 형식으로 변환하여
+     * .md 파일로 작성합니다.
+     *
+     * 첫 번째 행을 헤더로 사용하고, 부족한 컬럼은 빈 문자열로 패딩됩니다.
+     *
+     * @param filePath 출력할 Markdown 파일 경로
+     * @param sheets 변환할 SheetData 리스트
      */
     public void writeMarkdown(String filePath, List<SheetData> sheets) {
         StringBuilder sb = new StringBuilder();
@@ -48,7 +54,14 @@ public class MarkdownWriter {
         }
     }
 
-    /** Pads a row to match the column count with empty cells */
+    /**
+     * 행(row)의 길이가 컬럼 수(colCount)에 맞지 않을 경우,
+     * 부족한 부분을 빈 문자열("")로 채워 길이를 맞춥니다.
+     *
+     * @param row 원본 행 데이터
+     * @param colCount 목표 컬럼 수
+     * @return 컬럼 수에 맞게 패딩된 행 배열
+     */
     private String[] padRow(String[] row, int colCount) {
         if (row.length == colCount) return row;
         String[] padded = new String[colCount];
