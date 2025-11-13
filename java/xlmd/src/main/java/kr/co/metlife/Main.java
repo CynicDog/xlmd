@@ -1,19 +1,14 @@
 package kr.co.metlife;
 
-import kr.co.metlife.excel.ExcelReader;
-import kr.co.metlife.excel.ExcelWriter;
-import kr.co.metlife.excel.model.SheetData;
-import kr.co.metlife.markdown.MarkdownReader;
-import kr.co.metlife.markdown.MarkdownWriter;
-
-import java.io.IOException;
-import java.nio.file.Paths;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.util.ArrayList;
 import java.util.List;
-import javax.xml.stream.XMLStreamException;
 
 /**
- * Main command-line application entry point for XLMD.
- * Parses -i and -o flags, determines the conversion direction, and executes the logic.
+ * XLMD interactive converter:
+ * User pastes tab-delimited (copied-from-Excel) data into the terminal.
+ * The app prints out the equivalent Markdown table.
  */
 public class Main {
 
@@ -26,93 +21,71 @@ public class Main {
                      \s""";
 
     public static void main(String[] args) {
-        // Simple argument parsing for -i and -o
-        String inputFile = null;
-        String outputFile = null;
+        System.out.println(BANNER);
+        System.out.println("Paste the copied data from Excel below, then press ENTER twice when done:\n");
 
-        for (int i = 0; i < args.length; i++) {
-            if (args[i].equalsIgnoreCase("-i") && i + 1 < args.length) {
-                inputFile = args[i + 1];
-            } else if (args[i].equalsIgnoreCase("-o") && i + 1 < args.length) {
-                outputFile = args[i + 1];
-            }
+        List<String[]> rows = readUserPastedData();
+        if (rows.isEmpty()) {
+            System.out.println("No data received. Exiting.");
+            return;
         }
 
-        if (inputFile == null || outputFile == null) {
-            printUsage();
-            System.exit(1);
-        }
-
-        runConversion(inputFile, outputFile);
+        String markdown = convertToMarkdown(rows);
+        System.out.println("\nConverted Markdown Table:\n");
+        System.out.println(markdown);
     }
 
-    private static void printUsage() {
-        System.out.println(BANNER);
-        System.out.println("Usage: java kr.co.metlife.cli.XLMD -i <input_file> -o <output_file>");
-        System.out.println("\nExample: ");
-        System.out.println("  Convert Excel to Markdown: XLMD -i data.xlsx -o output.md");
-        System.out.println("  Convert Markdown to Excel: XLMD -i report.md -o table.xlsx");
-        System.out.println("\nNote: Conversion direction is inferred from file extensions.");
-    }
-
-    private static void runConversion(String inputFile, String outputFile) {
-        String inExt = getExtension(inputFile);
-        String outExt = getExtension(outputFile);
-        String direction = null;
-
-        if (".xlsx".equalsIgnoreCase(inExt) && ".md".equalsIgnoreCase(outExt)) {
-            direction = "excel2md";
-        } else if (".md".equalsIgnoreCase(inExt) && ".xlsx".equalsIgnoreCase(outExt)) {
-            direction = "md2excel";
-        }
-
-        if (direction == null) {
-            System.err.println("\nError: Invalid file combination.");
-            System.err.println("Must be either Excel → Markdown (.xlsx → .md) or Markdown → Excel (.md → .xlsx)");
-            System.exit(1);
-        }
-
-        System.out.println(BANNER);
-        System.out.printf("Convert %s input file to %s output file (%s)\n\n", inputFile, outputFile, direction);
-
-        try {
-            if ("excel2md".equals(direction)) {
-                System.out.println("-> Reading Excel file...");
-                ExcelReader reader = new ExcelReader(inputFile);
-                List<SheetData> data = reader.read();
-                System.out.println("-> Writing Markdown file...");
-                MarkdownWriter.writeMarkdown(outputFile, data);
-            } else { // md2excel
-                System.out.println("-> Reading Markdown file...");
-                MarkdownReader reader = new MarkdownReader();
-                List<SheetData> data = reader.readMarkdown(inputFile);
-                System.out.println("-> Writing Excel file...");
-                ExcelWriter writer = new ExcelWriter(outputFile, data);
-                writer.write();
+    /** Reads multiline user input (tab- or comma-delimited) until an empty line is entered. */
+    private static List<String[]> readUserPastedData() {
+        List<String[]> rows = new ArrayList<>();
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(System.in))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                if (line.trim().isEmpty()) break; // blank line signals end of paste
+                // Split on tab (preferred when pasting from Excel), fallback to comma
+                String[] cells = line.split("\t", -1);
+                if (cells.length == 1) cells = line.split(",", -1);
+                rows.add(cells);
             }
-            System.out.println("\nSUCCESS: Conversion complete!");
-
-        } catch (IOException e) {
-            System.err.println("\nFATAL ERROR: A file system error occurred.");
-            System.err.println("Details: " + e.getMessage());
-            System.exit(1);
-        } catch (XMLStreamException e) {
-            System.err.println("\nFATAL ERROR: Failed to process XML content (XLSX/Markdown parsing error).");
-            System.err.println("Details: " + e.getMessage());
-            System.exit(1);
         } catch (Exception e) {
-            System.err.println("\nFATAL ERROR: An unexpected error occurred.");
-            e.printStackTrace(System.err);
-            System.exit(1);
+            System.err.println("Error reading input: " + e.getMessage());
         }
+        return rows;
     }
 
-    private static String getExtension(String fileName) {
-        String name = Paths.get(fileName).getFileName().toString();
-        int lastDot = name.lastIndexOf('.');
-        if (lastDot > 0) {
-            return name.substring(lastDot).toLowerCase();
+    /** Converts parsed rows into Markdown table format. */
+    private static String convertToMarkdown(List<String[]> rows) {
+        if (rows.isEmpty()) return "";
+
+        int colCount = 0;
+        for (String[] row : rows) {
+            if (row.length > colCount) colCount = row.length;
         }
-        return "";
+
+        // pad all rows to equal length
+        for (int i = 0; i < rows.size(); i++) {
+            String[] r = rows.get(i);
+            if (r.length < colCount) {
+                String[] padded = new String[colCount];
+                System.arraycopy(r, 0, padded, 0, r.length);
+                for (int j = r.length; j < colCount; j++) padded[j] = "";
+                rows.set(i, padded);
+            }
+        }
+
+        StringBuilder sb = new StringBuilder();
+        // Header
+        String[] header = rows.get(0);
+        sb.append("| ").append(String.join(" | ", header)).append(" |\n");
+
+        // Separator
+        sb.append("|").append(" --- |".repeat(colCount)).append("\n");
+
+        // Body
+        for (int i = 1; i < rows.size(); i++) {
+            sb.append("| ").append(String.join(" | ", rows.get(i))).append(" |\n");
+        }
+
+        return sb.toString();
     }
 }

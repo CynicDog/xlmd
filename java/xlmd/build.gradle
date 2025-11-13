@@ -30,7 +30,8 @@ tasks.register('runApp', JavaExec) {
     classpath = sourceSets.main.runtimeClasspath
     // Set the main class from the application block
     mainClass = application.mainClass.get()
-    // The arguments are expected to be passed using the --args="..." property on the command line
+
+    standardInput = System.in
 }
 
 // Step 2a: Configure the primary JAR file for distribution
@@ -49,6 +50,9 @@ def jpackageExec() {
     return 'jpackage'
 }
 
+tasks.named('runApp') {
+    standardInput = System.in
+}
 
 /**
  * Task for building the native Windows executable.
@@ -88,7 +92,7 @@ tasks.register('packageUnix', Exec) {
 
     doFirst {
         if (appBundle.exists()) {
-            println "🧹 Removing old app bundle: ${appBundle}"
+            println "Removing old app bundle: ${appBundle}"
             appBundle.deleteDir()
         }
     }
