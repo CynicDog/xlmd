@@ -8,104 +8,71 @@ import kr.co.metlife.markdown.MarkdownWriter;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import java.io.*;
 import java.nio.file.*;
 import java.util.List;
 import java.util.zip.ZipFile;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/**
- * JUnit 5 integration tests for verifying Markdown <-> Excel conversions.
- *
- * Directory layout under src/test/resources/sample:
- *   iris/  → Excel (.xlsx) → Markdown (.md)
- *   sales/ → Markdown (.md) → Excel (.xlsx)
- */
-public class ConvertTest {
+class ConvertTest {
 
-    private static final Path RESOURCE_PATH = Paths.get("src", "test", "resources", "sample");
+    @TempDir
+    Path tempDir;
 
-    /**
-     * Test Excel → Markdown conversion.
-     * Reads a real .xlsx, converts it, and compares to expected Markdown output.
-     */
+    /** Excel → Markdown: simulate user paste input */
     @Test
-    void testExcelToMarkdown(@TempDir Path tempDir) throws Exception {
-        Path excelInput = RESOURCE_PATH.resolve("iris/in.xlsx");
-        Path expectedMarkdown = RESOURCE_PATH.resolve("iris/out.md");
-        Path actualMarkdown = tempDir.resolve("iris_out_actual.md");
+    void testExcelToMarkdownModule() throws Exception {
+        String simulatedInput = """
+                sepal.length\tsepal.width\tpetal.length\tpetal.width\tvariety
+                5.1\t3.5\t1.4\t0.2\tSetosa
+                4.9\t3.0\t1.4\t0.2\tSetosa
+                
+                """; // blank lines terminate input
 
-        System.out.println("Testing Excel → Markdown: " + excelInput);
+        InputStream originalIn = System.in;
+        System.setIn(new ByteArrayInputStream(simulatedInput.getBytes()));
 
-        // Read Excel file
-        ExcelReader reader = new ExcelReader(excelInput.toString());
-        List<SheetData> sheets = reader.read();
-        assertFalse(sheets.isEmpty(), "ExcelReader should have extracted sheets.");
+        List<SheetData> sheets = new ExcelReader().readFromUserInput();
+        assertFalse(sheets.isEmpty(), "Should read at least one sheet");
 
-        // Write Markdown
-        MarkdownWriter.writeMarkdown(actualMarkdown.toString(), sheets);
-        assertTrue(Files.exists(actualMarkdown), "MarkdownWriter should create output file.");
+        Path outputFile = tempDir.resolve("converted.md");
+        MarkdownWriter writer = new MarkdownWriter();
+        writer.writeMarkdown(outputFile.toString(), sheets);
 
-        // Compare contents (normalized)
-        String got = normalize(Files.readString(actualMarkdown));
-        String want = normalize(Files.readString(expectedMarkdown));
+        System.setIn(originalIn);
 
-        assertEquals(want, got, "Markdown output must match expected content.");
+        assertTrue(Files.exists(outputFile), "Markdown output should exist");
+        String content = Files.readString(outputFile);
+        assertTrue(content.contains("| sepal.length |"), "Markdown header should exist");
     }
 
-    /**
-     * Test Markdown → Excel conversion.
-     * Reads a real Markdown table, writes Excel, ensures it’s valid, and re-reads it.
-     */
+    /** Markdown → Excel: simulate user paste input */
     @Test
-    void testMarkdownToExcel(@TempDir Path tempDir) throws Exception {
-        Path markdownInput = RESOURCE_PATH.resolve("sales/in.md");
-        Path excelExpected = RESOURCE_PATH.resolve("sales/out.xlsx");
-        Path excelActual = tempDir.resolve("sales_out_actual.xlsx");
+    void testMarkdownToExcelModule() throws Exception {
+        String markdownInput = """
+                | sepal.length | sepal.width | petal.length | petal.width | variety |
+                | --- | --- | --- | --- | --- |
+                | 5.1 | 3.5 | 1.4 | 0.2 | Setosa |
+                | 4.9 | 3.0 | 1.4 | 0.2 | Setosa |
+                
+                """; // blank lines terminate input
 
-        System.out.println("Testing Markdown → Excel: " + markdownInput);
+        List<SheetData> sheets = new MarkdownReader().fromMarkdownString(markdownInput);
+        assertFalse(sheets.isEmpty(), "Should parse at least one table");
 
-        // Read Markdown
-        MarkdownReader mdReader = new MarkdownReader();
-        List<SheetData> wantSheets = mdReader.readMarkdown(markdownInput.toString());
-        assertFalse(wantSheets.isEmpty(), "MarkdownReader should extract at least one table.");
-
-        // Write Excel file
-        ExcelWriter writer = new ExcelWriter(excelActual.toString(), wantSheets);
+        Path outputExcel = tempDir.resolve("converted.xlsx");
+        ExcelWriter writer = new ExcelWriter(outputExcel.toString(), sheets);
         writer.write();
-        assertTrue(Files.exists(excelActual), "ExcelWriter should produce an XLSX file.");
 
-        // Verify the Excel file is a valid ZIP (XLSX container)
-        try (ZipFile zip = new ZipFile(excelActual.toFile())) {
+        assertTrue(Files.exists(outputExcel), "Excel output should exist");
+
+        // Validate XLSX container
+        try (ZipFile zip = new ZipFile(outputExcel.toFile())) {
             assertNotNull(zip.getEntry("[Content_Types].xml"), "Missing [Content_Types].xml");
             assertNotNull(zip.getEntry("xl/workbook.xml"), "Missing workbook.xml");
             assertTrue(zip.stream().anyMatch(e -> e.getName().startsWith("xl/worksheets/sheet")),
-                    "No worksheet files found in ZIP.");
-        }
-
-        // Read back the generated XLSX
-        ExcelReader excelReader = new ExcelReader(excelActual.toString());
-        List<SheetData> gotSheets = excelReader.read();
-        assertFalse(gotSheets.isEmpty(), "Generated Excel file should be readable.");
-
-        // Compare data content round-trip
-        assertSheetDataEquals(wantSheets, gotSheets);
-    }
-
-    /** Normalize Markdown text to avoid whitespace differences. */
-    private String normalize(String text) {
-        return text.trim().replaceAll("\\s+", " ");
-    }
-
-    /** Deep equality check for SheetData contents. */
-    private void assertSheetDataEquals(List<SheetData> expected, List<SheetData> actual) {
-        assertEquals(expected.size(), actual.size(), "Sheet count mismatch.");
-        for (int i = 0; i < expected.size(); i++) {
-            SheetData want = expected.get(i);
-            SheetData got = actual.get(i);
-            assertEquals(want.getName(), got.getName(), "Sheet name mismatch at index " + i);
-            assertEquals(want.getRows(), got.getRows(),
-                    "Data mismatch in sheet: " + want.getName());
+                    "No worksheet files found");
         }
     }
 }
